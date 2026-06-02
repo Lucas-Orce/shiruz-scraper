@@ -100,8 +100,8 @@ async function scrapeProvider(domain, url) {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
     console.log(`[${domain}] Page loaded`);
 
-    const frameDiv = await page.waitForSelector("#the_frame", {
-      timeout: 10000,
+    const frameDiv = await page.waitForSelector("#pf", {
+      timeout: 15000, // Le damos 15s porque brightpathsignals tarda en cargar los scripts de publicidad
     });
 
     if (frameDiv) {
@@ -119,7 +119,8 @@ async function scrapeProvider(domain, url) {
       } else {
         console.warn(`[${domain}] Fallback: clicking via JS`);
         await page.evaluate(() => {
-          document.querySelector("#the_frame")?.click();
+          // Ajustamos el fallback de JS también para apuntar a '#pf'
+          document.querySelector("#pf")?.click();
         });
       }
 
@@ -143,7 +144,7 @@ async function scrapeProvider(domain, url) {
         await page.waitForTimeout(5000);
       }
     } else {
-      throw new Error(`#the_frame div not found`);
+      throw new Error(`#pf iframe not found`);
     }
 
     await page.close();
