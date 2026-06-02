@@ -8,7 +8,7 @@ import { getTVSubtitleVTT } from "./utils/tvSubtitles.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 export const OPENSUB_API_KEY = process.env.OPENSUB_API_KEY;
 export const TMDB_API_KEY = process.env.TMDB_API_KEY;
 export const TMDB_BEARER_TOKEN = process.env.TMDB_BEARER_TOKEN;
@@ -29,7 +29,7 @@ const PROVIDERS = [
 ];
 
 export const LANGUAGE_NAMES = {
-  en: "English",
+  es: "Spanish",
 };
 
 export const COMMON_LANGUAGES = Object.keys(LANGUAGE_NAMES);
@@ -153,8 +153,8 @@ async function scrapeProvider(domain, url) {
 
     return { hls_url: hlsUrl, subtitles, error: null };
   } catch (error) {
-    await page.close().catch(() => {});
-    await context.close().catch(() => {});
+    await page.close().catch(() => { });
+    await context.close().catch(() => { });
     console.error(`[${domain}] Error: ${error.message}`);
     return { hls_url: null, subtitles: [], error: error.message };
   }
@@ -183,17 +183,16 @@ app.get("/extract", async (req, res) => {
     });
   }
 
-  const cacheKey = JSON.stringify(req.query);
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < 1000 * 60 * 15) {
-    console.log("Serving from cache");
-    return res.json(cached.response);
+  const cacheKey = `${type}_${tmdb_id}_${season || 0}_${episode || 0}`;
+  if (cache.has(cacheKey)) {
+    console.log(`[Cache] Serving from memory for key: ${cacheKey}`);
+    return res.json(cache.get(cacheKey));
   }
 
   const urls = PROVIDERS.reduce((acc, domain) => {
     acc[domain] =
       type === "tv"
-        ? `${domain}/embed/tv?tmdb=${tmdb_id}&season=${season}&episode=${episode}`
+        ? `${domain}/embed/tv/${tmdb_id}/${season}/${episode}`
         : `${domain}/embed/movie/${tmdb_id}`;
     return acc;
   }, {});
@@ -221,12 +220,12 @@ app.get("/extract", async (req, res) => {
 
     const response = { success, results };
 
-    cache.set(cacheKey, {
-      timestamp: Date.now(),
-      response,
-    });
+    // Guarda el JSON directo y programa su eliminación automática en 15 minutos
+    cache.set(cacheKey, response);
+    setTimeout(() => cache.delete(cacheKey), 15 * 60 * 1000);
 
     res.json(response);
+
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -430,9 +429,10 @@ app.get("/", (req, res) => {
 (async () => {
   browser = await chromium.launch({
     headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gl-drawing-for-tests"]
   });
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running perfectly on port ${PORT}`);
   });
 })();
 
